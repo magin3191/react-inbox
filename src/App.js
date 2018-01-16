@@ -1,174 +1,273 @@
 import React, { Component } from 'react'
 import './App.css'
+import {
+  BrowserRouter as Router,
+  Route,
+  Link
+} from 'react-router-dom'
 import MessageList from './components/MessageList'
 import Toolbar from './components/Toolbar'
 import Navbar from './components/Navbar'
 import Message from './components/Message'
-let allSelected=true
+import Compose from './components/Compose'
+let allSelected = true
+
 
 class App extends Component {
   constructor(props) {
     super(props)
     this.state = {
-      messages: this.props.messages
+      messages: []
     }
   }
 
-  toggleRead = (message) => {
+  async componentDidMount() {
+    const response = await fetch('http://localhost:8082/api/messages')
+    const json = await response.json()
+    this.setState({
+      messages: json._embedded.messages
+    })
+  }
 
+  composeMail = async (message) => {
+    const response = await fetch('http://localhost:8082/api/messages',{
+      method:'POST',
+      body:JSON.stringify({
+        subject: message.subject,
+        body:message.body
+      }),
+      headers:{
+        'Content-Type': 'application/json',
+        'Accept': 'application/json'
+      }
+    })
+    const newMessage = await response.json()
+    this.setState({messages:[...this.state.messages,newMessage]})
+  }
+
+  toggleRead = message => {
     const index = this.state.messages.indexOf(message)
     let newMessages = this.state.messages.slice(0)
     newMessages[index].read = !newMessages[index].read
-    this.setState({messages:newMessages})
+    this.setState({ messages: newMessages })
   }
 
-  toggleCheck = (message,e) =>{
+  toggleCheck = (message, e) => {
     e.stopPropagation()
     const index = this.state.messages.indexOf(message)
     let newMessages = this.state.messages.slice(0)
     newMessages[index].selected = !newMessages[index].selected
-    this.setState({messages:newMessages})
+    this.setState({ messages: newMessages })
   }
 
-  toggleStar = (message, e) => {
+  toggleStar = async (message, e) => {
+    const obj = {
+      'messageIds': [message.id],
+      'command': 'star',
+      'star': !message.starred
+    }
+
     e.stopPropagation()
     const index = this.state.messages.indexOf(message)
     let newMessages = this.state.messages.slice(0)
     newMessages[index].starred = !newMessages[index].starred
-    this.setState({messages:newMessages})
+    this.setState({ messages: newMessages })
+
+    await fetch('http://localhost:8082/api/messages', {
+      method: 'PATCH',
+      body: JSON.stringify(obj),
+      headers: {
+        'Content-Type': 'application/json',
+        'Accept': 'application/json'
+      }
+    })
   }
 
-  selectAll =() =>{
-    let selectedMessages = this.state.messages.slice(0);
-    if(allSelected === true){
+  selectAll = () => {
+    let selectedMessages = this.state.messages.slice(0)
+    if (allSelected === true) {
       selectedMessages.map(mess => {
         mess.selected = true
-        this.setState({messages:selectedMessages})
+        this.setState({ messages: selectedMessages })
       })
       allSelected = false
-    }
-    else{
+    } else {
       selectedMessages.map(mess => {
         mess.selected = false
-        this.setState({messages:selectedMessages})
+        this.setState({ messages: selectedMessages })
       })
       allSelected = true
     }
   }
 
-   markAsRead = (message) => {
+  markAsRead = async () => {
+    let array=[]
+
 
     let newMessages = this.state.messages.slice(0)
-      newMessages.map(message=>{
-      if(message.selected===true){
-        message.read=true
+    newMessages.map(message => {
+      if (message.selected === true) {
+        array.push(message.id)
+        message.read = true
+        message.selected=false
       }
     })
-    this.setState({messages:newMessages})
+    const obj = {
+    'messageIds': array,
+    'command': 'read',
+    'read': true
+    }
+
+    this.setState({ messages: newMessages })
+
+    await fetch('http://localhost:8082/api/messages', {
+      method: 'PATCH',
+      body: JSON.stringify(obj),
+      headers: {
+        'Content-Type': 'application/json',
+        'Accept': 'application/json'
+      }
+    })
   }
 
-  markAsUnread = (message) => {
+  markAsUnread  = async () => {
+    let array = []
     let newMessages = this.state.messages.slice(0)
-      newMessages.map(message=>{
-        if(message.selected===true){
-          message.read=false
+    newMessages.map(message => {
+      if (message.selected === true) {
+        array.push(message.id)
+        message.read = false
+        message.selected = false
+      }
+    })
+
+      const obj = {
+      'messageIds': array,
+      'command': 'read',
+      'read': false
+      }
+      this.setState({ messages: newMessages })
+
+      await fetch('http://localhost:8082/api/messages', {
+        method: 'PATCH',
+        body: JSON.stringify(obj),
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json'
         }
-        this.setState({messages:newMessages})
       })
   }
 
-  del = (message) => {
-    let arr = [];
+  del = async () => {
+
+    let arr = []
+    let ids=[]
     let newMessages = this.state.messages.slice(0)
-    newMessages.map(message=>{
-      if(!message.selected ===true){
+    newMessages.map(message => {
+      if (!message.selected === true) {
         arr.push(message)
       }
+      else {ids.push(message.id)}
     })
-    this.setState({messages:arr})
+    let obj = {
+      'messageIds': ids,
+      'command':'delete'
+    }
+    this.setState({ messages: arr })
+    await fetch('http://localhost:8082/api/messages', {
+      method: 'PATCH',
+      body: JSON.stringify(obj),
+      headers: {
+        'Content-Type': 'application/json',
+        'Accept': 'application/json'
+      }
+    })
   }
 
-
-applyLabel = (value) => {
-  let newMessages = this.state.messages.slice(0)
-  newMessages.map(message =>{
-    if(message.selected && message.labels.indexOf(value) ==-1){
-      message.labels.push(value)
-    }
-  })
-  this.setState({messages: newMessages})
-
-}
-
-removeLabel = (value) => {
-  let newMessages = this.state.messages.slice(0)
-  newMessages.map(message =>{
-    if(message.selected && message.labels.indexOf(value) !==-1){
-      let index = message.labels.indexOf(value)
-       message.labels.splice(index,1)
-    }
-  })
-    this.setState({messages: newMessages})
-}
-
-
-  unreadCount = (messages) =>{
-    let count =0
+  applyLabel = value => {
     let newMessages = this.state.messages.slice(0)
-    newMessages.map(message=>{
+    newMessages.map(message => {
+      if (message.selected && message.labels.indexOf(value) == -1) {
+        message.labels.push(value)
+      }
+    })
+    this.setState({ messages: newMessages })
+  }
 
-    if(message.read===false){
-      count ++
+  removeLabel = value => {
+    let newMessages = this.state.messages.slice(0)
+    newMessages.map(message => {
+      if (message.selected && message.labels.indexOf(value) !== -1) {
+        let index = message.labels.indexOf(value)
+        message.labels.splice(index, 1)
+      }
+    })
+    this.setState({ messages: newMessages })
+  }
+
+  unreadCount = messages => {
+    if (!this.state.messages.length) {
+      return 0
     }
+    let count = 0
+    let newMessages = this.state.messages.slice(0)
+    newMessages.map(message => {
+      if (message.read === false) {
+        count++
+      }
+    })
 
-  })
+    return count
+  }
 
-  return count
-}
-
-
-setButtonState = (messages) => {
-  let count = 0
-  let selectClass=''
-  let newMessages = this.state.messages.slice(0)
-  newMessages.map(message=>{
-    if(message.selected === true){
-      count ++
+  setButtonState = messages => {
+    if (!this.state.messages.length) {
+      return 0
     }
-  })
-    if(count > 0 || count < newMessages.length){
+    let count = 0
+    let selectClass = ''
+    let newMessages = this.state.messages.slice(0)
+    newMessages.map(message => {
+      if (message.selected === true) {
+        count++
+      }
+    })
+    if (count > 0 || count < newMessages.length) {
       selectClass = 'fa fa-minus-square-o'
     }
-    if(count === newMessages.length){
+    if (count === newMessages.length) {
       selectClass = 'fa fa-check-square-o'
     }
-    if(count===0){
+    if (count === 0) {
       selectClass = 'fa fa-square-o'
     }
 
-  return selectClass
-}
+    return selectClass
+  }
 
-
-unclickable = (messages) => {
-  let count = 0
-  let disabled =''
-  let newMessages = this.state.messages.slice(0)
-  newMessages.map(message=>{
-    if(message.selected===true){
-      count ++
+  unclickable = messages => {
+    if (!this.state.messages.length) {
+      return 0
     }
-    if(count > 0){
+    let count = 0
+    let disabled = ''
+    let newMessages = this.state.messages.slice(0)
+    newMessages.map(message => {
+      if (message.selected === true) {
+        count++
+      }
+      if (count > 0) {
+        disabled = ''
+      }
+      if (count === 0) {
+        disabled = 'disabled'
+      }
+    })
+    return disabled
+  }
 
-      disabled = ''
-    }
-    if(count===0){
-      disabled = 'disabled'
-    }
 
-  })
-  return disabled
-}
+
 
 
 
@@ -179,8 +278,29 @@ unclickable = (messages) => {
       <div className="App">
         <Navbar />
         <div className="container">
-          <Toolbar  selectAll={this.selectAll} markAsRead={this.markAsRead} markAsUnread={this.markAsUnread} del={this.del} applyLabel={this.applyLabel} removeLabel={this.removeLabel} unreadCount={this.unreadCount} setButtonState={this.setButtonState} unclickable={this.unclickable}/>
-          <MessageList messages={this.state.messages} toggleRead={this.toggleRead} toggleCheck={this.toggleCheck} toggleStar={this.toggleStar} />
+          <Toolbar
+            selectAll={this.selectAll}
+            markAsRead={this.markAsRead}
+            markAsUnread={this.markAsUnread}
+            del={this.del}
+            applyLabel={this.applyLabel}
+            removeLabel={this.removeLabel}
+            unreadCount={this.unreadCount}
+            setButtonState={this.setButtonState}
+            unclickable={this.unclickable}
+          />
+          <Route path='/compose'
+            render={()=>(
+              <Compose composeMail={this.composeMail} />
+            )}/>
+
+
+          <MessageList
+            messages={this.state.messages}
+            toggleRead={this.toggleRead}
+            toggleCheck={this.toggleCheck}
+            toggleStar={this.toggleStar}
+          />
         </div>
       </div>
     )

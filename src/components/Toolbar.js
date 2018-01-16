@@ -1,5 +1,12 @@
 import React from 'react'
 
+import {
+  BrowserRouter as Router,
+  Route,
+  Link,
+  Switch
+} from 'react-router-dom'
+
 
 
 const Toolbar = ({selectAll, markAsRead, markAsUnread, del, applyLabel, removeLabel, unreadCount, setButtonState, unclickable}) => {
@@ -10,7 +17,18 @@ const Toolbar = ({selectAll, markAsRead, markAsUnread, del, applyLabel, removeLa
       <span className="badge badge">{`${unreadCount()}`}</span>
       unread messages
     </p>
-
+        <Switch>
+             <Route path="/compose" render={ () => (
+               <Link className="btn btn-danger" to="/">
+                 <i className={`fa fa-plus`}></i>
+               </Link>
+             )} />
+             <Route render={ () => (
+               <Link className="btn btn-danger" to="/compose">
+                 <i className={`fa fa-plus`}></i>
+               </Link>
+             )} />
+        </Switch>
     <button className='btn btn-default'  onClick={()=>{selectAll()}}>
       <i className={`${setButtonState()}`} ></i>
     </button>
